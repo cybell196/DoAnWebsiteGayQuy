@@ -1,0 +1,110 @@
+.my-campaigns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.my-campaign-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  gap: 24px;
+  transition: all 0.3s;
+  border: 2px solid transparent;
+}
+
+.my-campaign-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-color);
+  transform: translateY(-4px);
+}
+
+.my-campaign-thumbnail {
+  width: 200px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.my-campaign-content {
+  flex: 1;
+}
+
+.my-campaign-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 16px;
+}
+
+.my-campaign-header h3 {
+  margin: 0;
+  flex: 1;
+  font-size: 22px;
+}
+
+.my-campaign-header h3 a {
+  color: var(--text-dark);
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.my-campaign-header h3 a:hover {
+  color: var(--primary-color);
+}
+
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.status-pending {
+  background-color: #FFF3CD;
+  color: #856404;
+}
+
+.status-approved {
+  background-color: #D4EDDA;
+  color: #155724;
+}
+
+.status-rejected {
+  background-color: #F8D7DA;
+  color: #721C24;
+}
+
+.my-campaign-meta {
+  color: var(--text-light);
+  margin-bottom: 16px;
+  font-size: 15px;
+}
+
+.my-campaign-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .my-campaign-card {
+    flex-direction: column;
+  }
+
+  .my-campaign-thumbnail {
+    width: 100%;
+    height: 200px;
+  }
+
+  .my-campaign-header {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,115 @@
+.rich-text-editor-wrapper {
+  background: white;
+  border-radius: 8px;
+}
+
+.rich-text-editor-wrapper .quill {
+  background: white;
+}
+
+.rich-text-editor-wrapper .ql-container {
+  min-height: 300px;
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.rich-text-editor-wrapper .ql-editor {
+  min-height: 300px;
+  padding: 20px;
+  line-height: 1.8;
+  color: var(--text-dark);
+}
+
+.rich-text-editor-wrapper .ql-editor.ql-blank::before {
+  font-style: normal;
+  color: var(--text-light);
+  left: 20px;
+  right: 20px;
+}
+
+.rich-text-editor-wrapper .ql-toolbar {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  border: 2px solid var(--border-color);
+  border-bottom: none;
+  background: var(--bg-light);
+  padding: 12px;
+}
+
+.rich-text-editor-wrapper .ql-container {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  border: 2px solid var(--border-color);
+  border-top: none;
+}
+
+.rich-text-editor-wrapper .ql-toolbar .ql-stroke {
+  stroke: var(--text-dark);
+}
+
+.rich-text-editor-wrapper .ql-toolbar .ql-fill {
+  fill: var(--text-dark);
+}
+
+.rich-text-editor-wrapper .ql-toolbar button:hover,
+.rich-text-editor-wrapper .ql-toolbar button.ql-active {
+  color: var(--primary-color);
+}
+
+.rich-text-editor-wrapper .ql-toolbar button:hover .ql-stroke,
+.rich-text-editor-wrapper .ql-toolbar button.ql-active .ql-stroke {
+  stroke: var(--primary-color);
+}
+
+.rich-text-editor-wrapper .ql-toolbar button:hover .ql-fill,
+.rich-text-editor-wrapper .ql-toolbar button.ql-active .ql-fill {
+  fill: var(--primary-color);
+}
+
+.rich-text-editor-wrapper .ql-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.rich-text-editor-wrapper .ql-editor p {
+  margin-bottom: 12px;
+}
+
+.rich-text-editor-wrapper .ql-editor h1,
+.rich-text-editor-wrapper .ql-editor h2,
+.rich-text-editor-wrapper .ql-editor h3 {
+  margin-top: 20px;
+  margin-bottom: 12px;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.rich-text-editor-wrapper .ql-editor h1 {
+  font-size: 32px;
+}
+
+.rich-text-editor-wrapper .ql-editor h2 {
+  font-size: 28px;
+}
+
+.rich-text-editor-wrapper .ql-editor h3 {
+  font-size: 24px;
+}
+
+.rich-text-editor-wrapper .ql-editor ul,
+.rich-text-editor-wrapper .ql-editor ol {
+  margin: 12px 0;
+  padding-left: 30px;
+}
+
+.rich-text-editor-wrapper .ql-editor blockquote {
+  border-left: 4px solid var(--primary-color);
+  padding-left: 16px;
+  margin: 16px 0;
+  font-style: italic;
+  color: var(--text-light);
+}
+
