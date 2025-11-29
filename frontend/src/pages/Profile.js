@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
@@ -31,19 +31,24 @@ const Profile = () => {
   // Campaigns
   const [campaigns, setCampaigns] = useState([]);
   const [campaignsLoading, setCampaignsLoading] = useState(false);
+  
+  // Check if user has password
+  const [hasPassword, setHasPassword] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      setProfileData({
-        fullname: user.fullname || '',
-        email: user.email || ''
-      });
-      fetchMyDonations();
-      fetchMyCampaigns();
+  const fetchUserInfo = useCallback(async () => {
+    try {
+      const response = await api.get('/auth/me');
+      const userData = response.data.user;
+      const newHasPassword = userData.has_password !== false;
+      setHasPassword(newHasPassword);
+      // Không update user context ở đây để tránh vòng lặp re-render
+      // Chỉ cập nhật local state hasPassword
+    } catch (error) {
+      console.error('Error fetching user info:', error);
     }
-  }, [user]);
+  }, []); // Không có dependencies để tránh re-create function và vòng lặp
 
-  const fetchMyDonations = async () => {
+  const fetchMyDonations = useCallback(async () => {
     setDonationsLoading(true);
     try {
       const response = await api.get('/donations/my-donations');
@@ -53,9 +58,9 @@ const Profile = () => {
     } finally {
       setDonationsLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMyCampaigns = async () => {
+  const fetchMyCampaigns = useCallback(async () => {
     setCampaignsLoading(true);
     try {
       const response = await api.get('/campaigns/my-campaigns');
@@ -65,7 +70,22 @@ const Profile = () => {
     } finally {
       setCampaignsLoading(false);
     }
-  };
+  }, []);
+
+  // Fetch data chỉ một lần khi component mount hoặc user.id thay đổi
+  useEffect(() => {
+    if (user?.id) {
+      setProfileData({
+        fullname: user.fullname || '',
+        email: user.email || ''
+      });
+      fetchMyDonations();
+      fetchMyCampaigns();
+      // Fetch user info to check if has password - chỉ một lần
+      fetchUserInfo();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]); // Chỉ phụ thuộc vào user.id để tránh re-fetch liên tục
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -95,20 +115,35 @@ const Profile = () => {
       return;
     }
 
+    // If user has password, require current password
+    if (hasPassword && !passwordData.currentPassword) {
+      alert('Vui lòng nhập mật khẩu hiện tại');
+      return;
+    }
+
     setLoading(true);
     try {
       await api.put('/auth/change-password', {
-        currentPassword: passwordData.currentPassword,
+        currentPassword: hasPassword ? passwordData.currentPassword : undefined,
         newPassword: passwordData.newPassword
       });
-      alert('Đổi mật khẩu thành công');
+      alert(hasPassword ? 'Đổi mật khẩu thành công' : 'Đặt mật khẩu thành công. Bạn có thể đăng nhập bằng email và mật khẩu.');
       setPasswordData({
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
       });
+      // Refresh user info to update hasPassword
+      try {
+        const response = await api.get('/auth/me');
+        const userData = response.data.user;
+        setHasPassword(userData.has_password !== false);
+        updateUser({ ...user, ...userData });
+      } catch (error) {
+        console.error('Error refreshing user info:', error);
+      }
     } catch (error) {
-      alert(error.response?.data?.message || 'Đổi mật khẩu thất bại');
+      alert(error.response?.data?.message || (hasPassword ? 'Đổi mật khẩu thất bại' : 'Đặt mật khẩu thất bại'));
     } finally {
       setLoading(false);
     }
@@ -202,39 +237,48 @@ const Profile = () => {
               </div>
 
               <div className="profile-card">
-                <h2>Đổi Mật Khẩu</h2>
+                <h2>{hasPassword ? 'Đổi Mật Khẩu' : 'Đặt Mật Khẩu'}</h2>
+                {!hasPassword && (
+                  <p style={{ color: '#666', marginBottom: '16px', fontSize: '14px' }}>
+                    Bạn đã đăng nhập bằng Google và chưa có mật khẩu. Hãy đặt mật khẩu để có thể đăng nhập bằng email và mật khẩu.
+                  </p>
+                )}
                 <form onSubmit={handleChangePassword}>
+                  {hasPassword && (
+                    <div className="form-group">
+                      <label>Mật Khẩu Hiện Tại</label>
+                      <input
+                        type="password"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        required
+                      />
+                    </div>
+                  )}
                   <div className="form-group">
-                    <label>Mật Khẩu Hiện Tại</label>
-                    <input
-                      type="password"
-                      value={passwordData.currentPassword}
-                      onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label>Mật Khẩu Mới</label>
+                    <label>{hasPassword ? 'Mật Khẩu Mới' : 'Mật Khẩu'}</label>
                     <input
                       type="password"
                       value={passwordData.newPassword}
                       onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
                       required
                       minLength={6}
+                      placeholder="Tối thiểu 6 ký tự"
                     />
                   </div>
                   <div className="form-group">
-                    <label>Xác Nhận Mật Khẩu Mới</label>
+                    <label>Xác Nhận {hasPassword ? 'Mật Khẩu Mới' : 'Mật Khẩu'}</label>
                     <input
                       type="password"
                       value={passwordData.confirmPassword}
                       onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
                       required
                       minLength={6}
+                      placeholder="Nhập lại mật khẩu"
                     />
                   </div>
                   <button type="submit" className="btn btn-primary" disabled={loading}>
-                    {loading ? 'Đang đổi...' : 'Đổi Mật Khẩu'}
+                    {loading ? (hasPassword ? 'Đang đổi...' : 'Đang đặt...') : (hasPassword ? 'Đổi Mật Khẩu' : 'Đặt Mật Khẩu')}
                   </button>
                 </form>
               </div>

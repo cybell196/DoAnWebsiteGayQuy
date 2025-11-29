@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
@@ -42,6 +42,92 @@ const CampaignDetail = () => {
   const handleAvatarError = (donorId) => {
     setAvatarErrors(prev => new Set(prev).add(donorId));
   };
+
+  const fetchExchangeRate = async () => {
+    try {
+      setLoadingExchangeRate(true);
+      const response = await api.get('/donations/exchange-rate');
+      const rate = response.data.exchange_rate;
+      setExchangeRate(rate);
+    } catch (error) {
+      console.error('Error fetching exchange rate:', error);
+      // Fallback rate (cập nhật lên 25,000 cho gần với thực tế hơn)
+      setExchangeRate(25000);
+    } finally {
+      setLoadingExchangeRate(false);
+    }
+  };
+
+  const fetchSOLExchangeRate = async () => {
+    try {
+      const response = await api.get('/donations/sol-exchange-rate');
+      const rate = response.data.exchange_rate;
+      setSolExchangeRate(rate);
+    } catch (error) {
+      console.error('Error fetching SOL exchange rate:', error);
+      // Fallback rate
+      setSolExchangeRate(150);
+    }
+  };
+
+  const fetchCampaign = useCallback(async () => {
+    try {
+      const response = await api.get(`/campaigns/${id}`);
+      setCampaign(response.data.campaign);
+    } catch (error) {
+      console.error('Error fetching campaign:', error);
+      if (error.response?.status === 403) {
+        setError('Chiến dịch này không khả dụng hoặc đã bị từ chối. Chỉ chủ sở hữu và quản trị viên mới có thể xem.');
+      } else if (error.response?.status === 404) {
+        setError('Không tìm thấy chiến dịch');
+      } else {
+        setError('Không thể tải thông tin chiến dịch');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  const fetchDonations = useCallback(async () => {
+    try {
+      const response = await api.get(`/donations/campaign/${id}`);
+      setDonations(response.data.donations);
+    } catch (error) {
+      console.error('Error fetching donations:', error);
+    }
+  }, [id]);
+
+  const fetchTopDonors = useCallback(async () => {
+    try {
+      const response = await api.get(`/donations/campaign/${id}/top-donors`);
+      setTopDonors(response.data.topDonors || []);
+    } catch (error) {
+      console.error('Error fetching top donors:', error);
+    }
+  }, [id]);
+
+  const checkAndUpdatePaymentStatus = useCallback(async (donationId) => {
+    try {
+      // Gọi API để kiểm tra và cập nhật payment status từ PayOS
+      const response = await api.get(`/donations/check-status/${donationId}`);
+      
+      // Nếu payment đã thành công, refresh campaign và donations để cập nhật tiến độ
+      if (response.data.donation.payment_status === 'SUCCESS') {
+        // Đợi một chút để đảm bảo backend đã cập nhật xong
+        setTimeout(() => {
+          fetchCampaign(); // Refresh campaign để cập nhật current_amount
+          fetchDonations(); // Refresh donations list
+          fetchTopDonors(); // Refresh top donors
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Error checking payment status:', error);
+      // Vẫn refresh để đảm bảo hiển thị đúng
+      fetchCampaign();
+      fetchDonations();
+      fetchTopDonors();
+    }
+  }, [fetchCampaign, fetchDonations, fetchTopDonors]);
 
   useEffect(() => {
     fetchCampaign();
@@ -89,93 +175,7 @@ const CampaignDetail = () => {
       socket.emit('leave-campaign', id);
       socket.disconnect();
     };
-  }, [id]);
-
-  const fetchExchangeRate = async () => {
-    try {
-      setLoadingExchangeRate(true);
-      const response = await api.get('/donations/exchange-rate');
-      const rate = response.data.exchange_rate;
-      setExchangeRate(rate);
-    } catch (error) {
-      console.error('Error fetching exchange rate:', error);
-      // Fallback rate (cập nhật lên 25,000 cho gần với thực tế hơn)
-      setExchangeRate(25000);
-    } finally {
-      setLoadingExchangeRate(false);
-    }
-  };
-
-  const fetchSOLExchangeRate = async () => {
-    try {
-      const response = await api.get('/donations/sol-exchange-rate');
-      const rate = response.data.exchange_rate;
-      setSolExchangeRate(rate);
-    } catch (error) {
-      console.error('Error fetching SOL exchange rate:', error);
-      // Fallback rate
-      setSolExchangeRate(150);
-    }
-  };
-
-  const fetchCampaign = async () => {
-    try {
-      const response = await api.get(`/campaigns/${id}`);
-      setCampaign(response.data.campaign);
-    } catch (error) {
-      console.error('Error fetching campaign:', error);
-      if (error.response?.status === 403) {
-        setError('Chiến dịch này không khả dụng hoặc đã bị từ chối. Chỉ chủ sở hữu và quản trị viên mới có thể xem.');
-      } else if (error.response?.status === 404) {
-        setError('Không tìm thấy chiến dịch');
-      } else {
-        setError('Không thể tải thông tin chiến dịch');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchDonations = async () => {
-    try {
-      const response = await api.get(`/donations/campaign/${id}`);
-      setDonations(response.data.donations);
-    } catch (error) {
-      console.error('Error fetching donations:', error);
-    }
-  };
-
-  const fetchTopDonors = async () => {
-    try {
-      const response = await api.get(`/donations/campaign/${id}/top-donors`);
-      setTopDonors(response.data.topDonors || []);
-    } catch (error) {
-      console.error('Error fetching top donors:', error);
-    }
-  };
-
-  const checkAndUpdatePaymentStatus = async (donationId) => {
-    try {
-      // Gọi API để kiểm tra và cập nhật payment status từ PayOS
-      const response = await api.get(`/donations/check-status/${donationId}`);
-      
-      // Nếu payment đã thành công, refresh campaign và donations để cập nhật tiến độ
-      if (response.data.donation.payment_status === 'SUCCESS') {
-        // Đợi một chút để đảm bảo backend đã cập nhật xong
-        setTimeout(() => {
-          fetchCampaign(); // Refresh campaign để cập nhật current_amount
-          fetchDonations(); // Refresh donations list
-          fetchTopDonors(); // Refresh top donors
-        }, 500);
-      }
-    } catch (error) {
-      console.error('Error checking payment status:', error);
-      // Vẫn refresh để đảm bảo hiển thị đúng
-      fetchCampaign();
-      fetchDonations();
-      fetchTopDonors();
-    }
-  };
+  }, [id, fetchCampaign, fetchDonations, fetchTopDonors, checkAndUpdatePaymentStatus]);
 
   const handleDonate = async (e) => {
     e.preventDefault();

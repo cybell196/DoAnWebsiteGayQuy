@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { getCategoryLabel } from '../constants/categories';
@@ -11,12 +11,7 @@ const Home = () => {
   const [filter, setFilter] = useState('active'); // 'active', 'ended', 'all'
   const [statistics, setStatistics] = useState({ totalAmount: 0, campaignCount: 0 });
 
-  useEffect(() => {
-    fetchCampaigns();
-    fetchStatistics();
-  }, [filter]);
-
-  const fetchCampaigns = async () => {
+  const fetchCampaigns = useCallback(async () => {
     try {
       const response = await api.get(`/campaigns?filter=${filter}`);
       setCampaigns(response.data.campaigns);
@@ -25,16 +20,21 @@ const Home = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async () => {
     try {
       const response = await api.get('/campaigns/statistics');
       setStatistics(response.data);
     } catch (error) {
       console.error('Error fetching statistics:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCampaigns();
+    fetchStatistics();
+  }, [fetchCampaigns, fetchStatistics]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {

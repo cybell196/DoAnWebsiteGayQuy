@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import './PaymentPage.css';
@@ -14,21 +14,6 @@ const PaymentPage = () => {
   const donationId = searchParams.get('donation_id');
   const orderCode = searchParams.get('order_code');
   const campaignId = searchParams.get('campaign_id');
-
-  useEffect(() => {
-    if (donationId && orderCode) {
-      fetchPaymentData();
-      // Kiểm tra trạng thái thanh toán mỗi 5 giây
-      const interval = setInterval(() => {
-        checkPaymentStatus();
-      }, 5000);
-
-      return () => clearInterval(interval);
-    } else {
-      setError('Thiếu thông tin thanh toán');
-      setLoading(false);
-    }
-  }, [donationId, orderCode]);
 
   const fetchPaymentData = async () => {
     try {
@@ -52,7 +37,7 @@ const PaymentPage = () => {
     }
   };
 
-  const checkPaymentStatus = async () => {
+  const checkPaymentStatus = useCallback(async () => {
     if (!donationId || checkingStatus) return;
 
     try {
@@ -72,7 +57,22 @@ const PaymentPage = () => {
     } finally {
       setCheckingStatus(false);
     }
-  };
+  }, [donationId, campaignId, navigate, checkingStatus]);
+
+  useEffect(() => {
+    if (donationId && orderCode) {
+      fetchPaymentData();
+      // Kiểm tra trạng thái thanh toán mỗi 5 giây
+      const interval = setInterval(() => {
+        checkPaymentStatus();
+      }, 5000);
+
+      return () => clearInterval(interval);
+    } else {
+      setError('Thiếu thông tin thanh toán');
+      setLoading(false);
+    }
+  }, [donationId, orderCode, checkPaymentStatus]);
 
   // Payment method handlers - dễ mở rộng cho các phương thức thanh toán khác
   const handleBankingPayment = () => {

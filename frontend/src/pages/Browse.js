@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { CAMPAIGN_CATEGORIES, getCategoryLabel } from '../constants/categories';
@@ -12,14 +12,6 @@ const Browse = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  useEffect(() => {
-    fetchCampaigns();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [campaigns, categoryFilter, statusFilter]);
-
   const fetchCampaigns = async () => {
     try {
       const response = await api.get('/campaigns?filter=active');
@@ -31,7 +23,7 @@ const Browse = () => {
     }
   };
 
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     let filtered = [...campaigns];
 
     // Filter by category
@@ -66,7 +58,15 @@ const Browse = () => {
     // 'all' không filter gì
 
     setFilteredCampaigns(filtered);
-  };
+  }, [campaigns, categoryFilter, statusFilter]);
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, []);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {

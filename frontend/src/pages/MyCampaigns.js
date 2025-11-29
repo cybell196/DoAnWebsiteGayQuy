@@ -1,19 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 import { getImageUrl } from '../utils/imageUtils';
 import './MyCampaigns.css';
 
 const MyCampaigns = () => {
-  const { user } = useContext(AuthContext);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchMyCampaigns();
-  }, []);
 
   const fetchMyCampaigns = async () => {
     try {
@@ -25,6 +18,10 @@ const MyCampaigns = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchMyCampaigns();
+  }, []);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Bạn có chắc chắn muốn xóa chiến dịch này?')) {

@@ -9,19 +9,6 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchUnreadCount();
-      fetchNotifications();
-      // Poll for new notifications every 30 seconds
-      const interval = setInterval(() => {
-        fetchUnreadCount();
-        fetchNotifications();
-      }, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user]);
-
   const fetchUnreadCount = async () => {
     try {
       const response = await api.get('/notifications/unread-count');
@@ -39,6 +26,20 @@ const NotificationBell = () => {
       console.error('Error fetching notifications:', error);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      fetchUnreadCount();
+      fetchNotifications();
+      // Poll for new notifications every 30 seconds
+      const interval = setInterval(() => {
+        fetchUnreadCount();
+        fetchNotifications();
+      }, 30000);
+      return () => clearInterval(interval);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const handleMarkAsRead = async (id) => {
     try {

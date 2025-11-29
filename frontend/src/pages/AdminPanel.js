@@ -10,14 +10,6 @@ const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState('campaigns');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (activeTab === 'campaigns') {
-      fetchCampaigns();
-    } else {
-      fetchDonations();
-    }
-  }, [activeTab]);
-
   const fetchCampaigns = async () => {
     try {
       const response = await api.get('/campaigns');
@@ -39,6 +31,14 @@ const AdminPanel = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'campaigns') {
+      fetchCampaigns();
+    } else {
+      fetchDonations();
+    }
+  }, [activeTab]);
 
   const handleStatusUpdate = async (campaignId, status) => {
     try {

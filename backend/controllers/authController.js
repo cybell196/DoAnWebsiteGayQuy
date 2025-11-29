@@ -290,11 +290,17 @@ const login = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const [users] = await pool.execute(
-      'SELECT id, email, fullname, role, avatar FROM users WHERE id = ?',
+      'SELECT id, email, fullname, role, avatar, auth_provider, password_hash FROM users WHERE id = ?',
       [req.user.id]
     );
 
-    res.json({ user: users[0] });
+    const user = users[0];
+    // Add has_password flag (true if password_hash exists and is not null)
+    user.has_password = !!user.password_hash;
+    // Don't send password_hash to client
+    delete user.password_hash;
+
+    res.json({ user });
   } catch (error) {
     console.error('Get me error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -328,13 +334,18 @@ const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: 'Current password and new password are required' });
+    if (!newPassword) {
+      return res.status(400).json({ message: 'New password is required' });
+    }
+
+    // Validate new password length
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'Mật khẩu mới phải có ít nhất 6 ký tự' });
     }
 
     // Get current user with password
     const [users] = await pool.execute(
-      'SELECT password_hash FROM users WHERE id = ?',
+      'SELECT password_hash, auth_provider FROM users WHERE id = ?',
       [req.user.id]
     );
 
@@ -342,23 +353,37 @@ const changePassword = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Verify current password
-    const isValidPassword = await bcrypt.compare(currentPassword, users[0].password_hash);
+    const user = users[0];
+    const hasPassword = !!user.password_hash;
 
-    if (!isValidPassword) {
-      return res.status(401).json({ message: 'Current password is incorrect' });
+    // If user has password, require current password
+    if (hasPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: 'Mật khẩu hiện tại là bắt buộc' });
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
+
+      if (!isValidPassword) {
+        return res.status(401).json({ message: 'Mật khẩu hiện tại không đúng' });
+      }
     }
+    // If user doesn't have password (Google login), allow setting password without current password
 
     // Hash new password
     const passwordHash = await bcrypt.hash(newPassword, 10);
 
-    // Update password
+    // Update password and set auth_provider to 'local' if it was 'google'
+    // This allows user to login with both methods
     await pool.execute(
-      'UPDATE users SET password_hash = ? WHERE id = ?',
-      [passwordHash, req.user.id]
+      'UPDATE users SET password_hash = ?, auth_provider = ? WHERE id = ?',
+      [passwordHash, hasPassword ? user.auth_provider : 'local', req.user.id]
     );
 
-    res.json({ message: 'Password changed successfully' });
+    res.json({ 
+      message: hasPassword ? 'Đổi mật khẩu thành công' : 'Đặt mật khẩu thành công. Bạn có thể đăng nhập bằng email và mật khẩu.'
+    });
   } catch (error) {
     console.error('Change password error:', error);
     res.status(500).json({ message: 'Server error' });
