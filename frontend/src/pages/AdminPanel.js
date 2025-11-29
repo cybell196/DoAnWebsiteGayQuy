@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
+import { getImageUrl } from '../utils/imageUtils';
 import './AdminPanel.css';
 
 const AdminPanel = () => {
@@ -132,7 +133,7 @@ const AdminPanel = () => {
                   <div key={campaign.id} className="admin-campaign-card">
                     {campaign.thumbnail && (
                       <img
-                        src={`http://localhost:5000${campaign.thumbnail}`}
+                        src={getImageUrl(campaign.thumbnail)}
                         alt={campaign.title}
                         className="admin-campaign-thumbnail"
                       />

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { CAMPAIGN_CATEGORIES, getCategoryLabel } from '../constants/categories';
 import './Browse.css';
+import { getImageUrl } from '../utils/imageUtils';
 
 const Browse = () => {
   const [campaigns, setCampaigns] = useState([]);
@@ -166,7 +167,7 @@ const Browse = () => {
                   <div className="campaign-image-wrapper">
                     {campaign.thumbnail ? (
                       <img
-                        src={`http://localhost:5000${campaign.thumbnail}`}
+                        src={getImageUrl(campaign.thumbnail)}
                         alt={campaign.title}
                         className="campaign-thumbnail-modern"
                       />

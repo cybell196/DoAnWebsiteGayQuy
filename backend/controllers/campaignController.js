@@ -1,9 +1,75 @@
 const pool = require('../config/database');
+const path = require('path');
+const fs = require('fs');
 const { notifyCampaignStatus, notifyNewCampaign } = require('../services/notificationService');
+const { uploadImage, deleteImage, deleteImages } = require('../services/cloudinaryService');
+const { checkAndEndExpiredCampaigns } = require('../services/campaignScheduler');
+
+/**
+ * Extract local image URLs từ HTML content và upload lên Cloudinary
+ * @param {string} htmlContent - HTML content có thể chứa local image URLs
+ * @param {string} baseUrl - Base URL của server (để detect local URLs)
+ * @returns {Promise<{content: string, uploadedImages: string[]}>} - Content đã được replace và danh sách URLs đã upload
+ */
+const uploadContentImagesToCloudinary = async (htmlContent, baseUrl = 'http://localhost:5000') => {
+  if (!htmlContent) {
+    return { content: htmlContent, uploadedImages: [] };
+  }
+
+  const uploadedImages = [];
+  let updatedContent = htmlContent;
+
+  // Tìm tất cả <img> tags với src là local URL
+  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  const matches = [...htmlContent.matchAll(imgRegex)];
+
+  for (const match of matches) {
+    const imageUrl = match[1];
+    
+    // Chỉ xử lý local URLs (không phải Cloudinary URLs)
+    if (imageUrl.includes(baseUrl) && !imageUrl.includes('cloudinary.com')) {
+      try {
+        // Extract file path từ URL
+        // Ví dụ: http://localhost:5000/uploads/content-images/123.jpg
+        // → uploads/content-images/123.jpg
+        const urlPath = new URL(imageUrl).pathname;
+        const filePath = path.join(process.cwd(), urlPath);
+
+        // Kiểm tra file có tồn tại không
+        if (fs.existsSync(filePath)) {
+          // Upload lên Cloudinary
+          const uploadResult = await uploadImage(filePath, {
+            folder: 'campaigns/content-images',
+            transformation: [
+              { width: 1920, height: 1080, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' }
+            ]
+          });
+
+          const cloudinaryUrl = uploadResult.url;
+          uploadedImages.push(cloudinaryUrl);
+
+          // Replace URL trong content
+          updatedContent = updatedContent.replace(imageUrl, cloudinaryUrl);
+        }
+      } catch (error) {
+        console.error('Error uploading content image to Cloudinary:', error);
+        // Giữ nguyên URL nếu upload fail
+      }
+    }
+  }
+
+  return { content: updatedContent, uploadedImages };
+};
 
 // Get all campaigns (approved and active only for non-admin, all for admin)
 const getAllCampaigns = async (req, res) => {
   try {
+    // Check and auto-end expired campaigns before querying
+    // Chạy async, không block request
+    checkAndEndExpiredCampaigns().catch(err => {
+      console.error('Error checking expired campaigns:', err);
+    });
+
     const { filter } = req.query; // filter: 'all', 'active', 'ended', 'pending', 'rejected'
     
     let query = `
@@ -17,13 +83,13 @@ const getAllCampaigns = async (req, res) => {
 
     // If not admin
     if (req.user?.role !== 'ADMIN') {
-      // Non-admin: only show approved campaigns
+      // Non-admin: only show approved or ended campaigns (không cho xem PENDING/REJECTED)
       if (filter === 'ended') {
         // Show ended campaigns
         conditions.push('c.status = "ENDED"');
       } else {
-        // Default: only show active (approved and not ended)
-        conditions.push('c.status = "APPROVED" AND c.status != "ENDED"');
+        // Default: only show approved campaigns (active)
+        conditions.push('c.status = "APPROVED"');
       }
     } else {
       // Admin: can see all, apply filter if provided
@@ -125,6 +191,11 @@ const getCampaignById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Check and auto-end expired campaigns before querying
+    checkAndEndExpiredCampaigns().catch(err => {
+      console.error('Error checking expired campaigns:', err);
+    });
+
     // Get campaign
     const [campaigns] = await pool.execute(
       `SELECT c.*, u.fullname as creator_name, u.avatar as creator_avatar
@@ -157,8 +228,8 @@ const getCampaignById = async (req, res) => {
     // Check if user can view
     // - Admin can view all campaigns
     // - Owner can view their own campaigns (any status)
-    // - Others can only view APPROVED campaigns (not ENDED)
-    // - If not authenticated, only show APPROVED campaigns (not ENDED)
+    // - Others can view APPROVED and ENDED campaigns (chỉ chặn PENDING và REJECTED)
+    // - If not authenticated, can view APPROVED and ENDED campaigns
     const userId = req.user?.id;
     const userRole = req.user?.role;
     
@@ -166,10 +237,10 @@ const getCampaignById = async (req, res) => {
       // Admin can view all campaigns
     } else if (campaign.user_id === userId) {
       // Owner can view their own campaigns
-    } else if (campaign.status === 'APPROVED') {
-      // Others can view approved campaigns (but not ended ones)
-      // Note: If status is ENDED, it won't be APPROVED, so this check is sufficient
+    } else if (campaign.status === 'APPROVED' || campaign.status === 'ENDED') {
+      // Others can view approved and ended campaigns
     } else {
+      // Chặn PENDING và REJECTED campaigns
       return res.status(403).json({ message: 'Campaign not available' });
     }
 
@@ -182,6 +253,7 @@ const getCampaignById = async (req, res) => {
 
 // Create campaign
 const createCampaign = async (req, res) => {
+  let thumbnail = null;
   try {
     const { title, goal_amount, category, start_date, end_date, content, images } = req.body;
 
@@ -189,7 +261,27 @@ const createCampaign = async (req, res) => {
       return res.status(400).json({ message: 'Title, goal amount, and content are required' });
     }
 
-    const thumbnail = req.file ? `/uploads/${req.file.filename}` : null;
+    // Upload thumbnail to Cloudinary if uploaded
+    if (req.file) {
+      try {
+        const uploadResult = await uploadImage(req.file.path, {
+          folder: 'campaigns/thumbnails',
+          transformation: [
+            { width: 1920, height: 1080, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' }
+          ]
+        });
+        thumbnail = uploadResult.url;
+      } catch (uploadError) {
+        console.error('Thumbnail upload error:', uploadError);
+        // Cleanup local file if upload fails
+        if (req.file && req.file.path) {
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+        }
+        return res.status(500).json({ message: 'Failed to upload thumbnail' });
+      }
+    }
 
     // If admin creates campaign, auto-approve. Otherwise, set to PENDING
     const status = req.user.role === 'ADMIN' ? 'APPROVED' : 'PENDING';
@@ -203,18 +295,51 @@ const createCampaign = async (req, res) => {
 
     const campaignId = result.insertId;
 
-    // Create campaign content
+    // Upload content images từ HTML lên Cloudinary (nếu có local URLs)
+    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const { content: updatedContent, uploadedImages: contentUploadedImages } = await uploadContentImagesToCloudinary(content, baseUrl);
+
+    // Create campaign content (với URLs đã được replace)
     await pool.execute(
       'INSERT INTO campaign_contents (campaign_id, content) VALUES (?, ?)',
-      [campaignId, content]
+      [campaignId, updatedContent]
     );
 
-    // Create campaign images
+    // Upload và create campaign images (nếu có images array)
+    const uploadedImageUrls = [];
     if (images && Array.isArray(images) && images.length > 0) {
       for (const imageUrl of images) {
+        let finalImageUrl = imageUrl;
+        
+        // Nếu là local URL, upload lên Cloudinary
+        if (imageUrl.includes(baseUrl) && !imageUrl.includes('cloudinary.com')) {
+          try {
+            const urlPath = new URL(imageUrl).pathname;
+            const filePath = path.join(process.cwd(), urlPath);
+            
+            if (fs.existsSync(filePath)) {
+              const uploadResult = await uploadImage(filePath, {
+                folder: 'campaigns/content-images',
+                transformation: [
+                  { width: 1920, height: 1080, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' }
+                ]
+              });
+              finalImageUrl = uploadResult.url;
+              uploadedImageUrls.push(finalImageUrl);
+            }
+          } catch (error) {
+            console.error('Error uploading campaign image to Cloudinary:', error);
+            // Giữ nguyên URL nếu upload fail
+            finalImageUrl = imageUrl;
+          }
+        } else {
+          // Đã là Cloudinary URL hoặc URL khác
+          finalImageUrl = imageUrl;
+        }
+        
         await pool.execute(
           'INSERT INTO campaign_images (campaign_id, image_url) VALUES (?, ?)',
-          [campaignId, imageUrl]
+          [campaignId, finalImageUrl]
         );
       }
     }
@@ -227,6 +352,14 @@ const createCampaign = async (req, res) => {
     res.status(201).json({ message: 'Campaign created successfully', campaignId });
   } catch (error) {
     console.error('Create campaign error:', error);
+    // Cleanup: xóa thumbnail từ Cloudinary nếu có lỗi
+    if (thumbnail && thumbnail.includes('cloudinary.com')) {
+      try {
+        await deleteImage(thumbnail);
+      } catch (deleteError) {
+        console.error('Error deleting thumbnail from Cloudinary:', deleteError);
+      }
+    }
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -260,7 +393,41 @@ const updateCampaign = async (req, res) => {
     }
 
     // Update campaign
-    const thumbnail = req.file ? `/uploads/${req.file.filename}` : undefined;
+    let thumbnail = undefined;
+    
+    // Upload thumbnail mới lên Cloudinary và xóa thumbnail cũ nếu có thumbnail mới
+    if (req.file) {
+      try {
+        // Xóa thumbnail cũ từ Cloudinary trước
+        if (campaign.thumbnail && campaign.thumbnail.includes('cloudinary.com')) {
+          try {
+            await deleteImage(campaign.thumbnail);
+          } catch (deleteError) {
+            console.error('Error deleting old thumbnail:', deleteError);
+          }
+        }
+
+        // Upload thumbnail mới lên Cloudinary
+        const uploadResult = await uploadImage(req.file.path, {
+          folder: 'campaigns/thumbnails',
+          transformation: [
+            { width: 1920, height: 1080, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' }
+          ]
+        });
+        thumbnail = uploadResult.url;
+      } catch (uploadError) {
+        console.error('Thumbnail upload error:', uploadError);
+        // Cleanup local file if upload fails
+        if (req.file && req.file.path) {
+          const fs = require('fs');
+          if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+          }
+        }
+        return res.status(500).json({ message: 'Failed to upload thumbnail' });
+      }
+    }
+
     const updateFields = [];
     const updateValues = [];
 
@@ -297,21 +464,70 @@ const updateCampaign = async (req, res) => {
       );
     }
 
-    // Update content
+    // Update content (upload local images lên Cloudinary nếu có)
     if (content) {
+      const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+      const { content: updatedContent } = await uploadContentImagesToCloudinary(content, baseUrl);
+      
       await pool.execute(
         'UPDATE campaign_contents SET content = ? WHERE campaign_id = ?',
-        [content, id]
+        [updatedContent, id]
       );
     }
 
     // Update images (delete old and insert new)
     if (images && Array.isArray(images)) {
+      // Lấy danh sách ảnh cũ để xóa từ Cloudinary
+      const [oldImages] = await pool.execute(
+        'SELECT image_url FROM campaign_images WHERE campaign_id = ?',
+        [id]
+      );
+      
+      // Xóa ảnh cũ từ Cloudinary (chỉ nếu là Cloudinary URL)
+      const cloudinaryUrls = oldImages
+        .map(img => img.image_url)
+        .filter(url => url && url.includes('cloudinary.com'));
+      
+      if (cloudinaryUrls.length > 0) {
+        try {
+          await deleteImages(cloudinaryUrls);
+        } catch (deleteError) {
+          console.error('Error deleting old images from Cloudinary:', deleteError);
+        }
+      }
+      
+      // Xóa records và insert mới (upload local images lên Cloudinary)
       await pool.execute('DELETE FROM campaign_images WHERE campaign_id = ?', [id]);
+      
+      const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
       for (const imageUrl of images) {
+        let finalImageUrl = imageUrl;
+        
+        // Nếu là local URL, upload lên Cloudinary
+        if (imageUrl.includes(baseUrl) && !imageUrl.includes('cloudinary.com')) {
+          try {
+            const urlPath = new URL(imageUrl).pathname;
+            const filePath = path.join(process.cwd(), urlPath);
+            
+            if (fs.existsSync(filePath)) {
+              const uploadResult = await uploadImage(filePath, {
+                folder: 'campaigns/content-images',
+                transformation: [
+                  { width: 1920, height: 1080, crop: 'limit', quality: 'auto:good', fetch_format: 'auto' }
+                ]
+              });
+              finalImageUrl = uploadResult.url;
+            }
+          } catch (error) {
+            console.error('Error uploading campaign image to Cloudinary:', error);
+            // Giữ nguyên URL nếu upload fail
+            finalImageUrl = imageUrl;
+          }
+        }
+        
         await pool.execute(
           'INSERT INTO campaign_images (campaign_id, image_url) VALUES (?, ?)',
-          [id, imageUrl]
+          [id, finalImageUrl]
         );
       }
     }
@@ -349,6 +565,33 @@ const deleteCampaign = async (req, res) => {
     if (req.user.role !== 'ADMIN') {
       if (campaign.status === 'APPROVED') {
         return res.status(400).json({ message: 'Cannot delete approved campaign' });
+      }
+    }
+
+    // Xóa thumbnail từ Cloudinary
+    if (campaign.thumbnail && campaign.thumbnail.includes('cloudinary.com')) {
+      try {
+        await deleteImage(campaign.thumbnail);
+      } catch (deleteError) {
+        console.error('Error deleting thumbnail from Cloudinary:', deleteError);
+      }
+    }
+
+    // Xóa tất cả ảnh content từ Cloudinary
+    const [images] = await pool.execute(
+      'SELECT image_url FROM campaign_images WHERE campaign_id = ?',
+      [id]
+    );
+    
+    const cloudinaryUrls = images
+      .map(img => img.image_url)
+      .filter(url => url && url.includes('cloudinary.com'));
+    
+    if (cloudinaryUrls.length > 0) {
+      try {
+        await deleteImages(cloudinaryUrls);
+      } catch (deleteError) {
+        console.error('Error deleting images from Cloudinary:', deleteError);
       }
     }
 
@@ -454,6 +697,52 @@ const endCampaign = async (req, res) => {
   }
 };
 
+// Admin: Manual check and end expired campaigns
+const checkExpiredCampaigns = async (req, res) => {
+  try {
+    const result = await checkAndEndExpiredCampaigns();
+    res.json({
+      message: `Checked expired campaigns. ${result.updated} campaign(s) ended.`,
+      updated: result.updated,
+      campaigns: result.campaigns
+    });
+  } catch (error) {
+    console.error('Check expired campaigns error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get statistics (tổng số tiền quyên góp và số lượng chiến dịch)
+const getStatistics = async (req, res) => {
+  try {
+    // Tổng số tiền đã quyên góp (tất cả campaigns APPROVED và ENDED có current_amount > 0)
+    const [totalAmountResult] = await pool.execute(
+      `SELECT COALESCE(SUM(current_amount), 0) as total_amount
+       FROM campaigns
+       WHERE status IN ('APPROVED', 'ENDED') AND current_amount > 0`
+    );
+    
+    const totalAmount = parseFloat(totalAmountResult[0].total_amount) || 0;
+    
+    // Số lượng chiến dịch (APPROVED và ENDED)
+    const [campaignCountResult] = await pool.execute(
+      `SELECT COUNT(*) as campaign_count
+       FROM campaigns
+       WHERE status IN ('APPROVED', 'ENDED')`
+    );
+    
+    const campaignCount = parseInt(campaignCountResult[0].campaign_count) || 0;
+    
+    res.json({
+      totalAmount,
+      campaignCount
+    });
+  } catch (error) {
+    console.error('Get statistics error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getAllCampaigns,
   getCampaignById,
@@ -462,6 +751,8 @@ module.exports = {
   deleteCampaign,
   getMyCampaigns,
   updateCampaignStatus,
-  endCampaign
+  endCampaign,
+  checkExpiredCampaigns,
+  getStatistics
 };
 

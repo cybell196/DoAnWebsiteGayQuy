@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
+import { getImageUrl } from '../utils/imageUtils';
 import './Profile.css';
 
 const Profile = () => {
@@ -70,8 +71,9 @@ const Profile = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.put('/auth/profile', profileData);
-      updateUser({ ...user, ...profileData });
+      // Only send fullname, email cannot be changed
+      await api.put('/auth/profile', { fullname: profileData.fullname });
+      updateUser({ ...user, fullname: profileData.fullname });
       alert('Cập nhật thông tin thành công');
     } catch (error) {
       alert(error.response?.data?.message || 'Cập nhật thất bại');
@@ -182,9 +184,16 @@ const Profile = () => {
                     <input
                       type="email"
                       value={profileData.email}
-                      onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                      required
+                      disabled
+                      style={{ 
+                        backgroundColor: '#f5f5f5', 
+                        cursor: 'not-allowed',
+                        color: '#666'
+                      }}
                     />
+                    <small style={{ color: '#999', fontSize: '14px', marginTop: '4px', display: 'block' }}>
+                      Email không thể thay đổi
+                    </small>
                   </div>
                   <button type="submit" className="btn btn-primary" disabled={loading}>
                     {loading ? 'Đang cập nhật...' : 'Cập Nhật'}
@@ -296,7 +305,7 @@ const Profile = () => {
                       <div key={campaign.id} className="campaign-card">
                         {campaign.thumbnail && (
                           <img
-                            src={`http://localhost:5000${campaign.thumbnail}`}
+                            src={getImageUrl(campaign.thumbnail)}
                             alt={campaign.title}
                             className="campaign-thumbnail"
                           />

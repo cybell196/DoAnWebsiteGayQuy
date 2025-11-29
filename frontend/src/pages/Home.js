@@ -3,14 +3,17 @@ import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { getCategoryLabel } from '../constants/categories';
 import './Home.css';
+import { getImageUrl } from '../utils/imageUtils';
 
 const Home = () => {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('active'); // 'active', 'ended', 'all'
+  const [statistics, setStatistics] = useState({ totalAmount: 0, campaignCount: 0 });
 
   useEffect(() => {
     fetchCampaigns();
+    fetchStatistics();
   }, [filter]);
 
   const fetchCampaigns = async () => {
@@ -21,6 +24,15 @@ const Home = () => {
       console.error('Error fetching campaigns:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStatistics = async () => {
+    try {
+      const response = await api.get('/campaigns/statistics');
+      setStatistics(response.data);
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
     }
   };
 
@@ -64,19 +76,15 @@ const Home = () => {
         <div className="hero-stats">
           <div className="stat-item">
             <div className="stat-number">
-              {campaigns.filter(c => c.status === 'APPROVED' && c.status !== 'ENDED').length}+
+              {formatCurrency(statistics.totalAmount)}
             </div>
-            <div className="stat-label">Chiến Dịch Đang Diễn Ra</div>
+            <div className="stat-label">Đã Quyên Góp</div>
           </div>
           <div className="stat-item">
             <div className="stat-number">
-              {formatCurrency(
-                campaigns
-                  .filter(c => c.status === 'APPROVED' && c.status !== 'ENDED')
-                  .reduce((sum, c) => sum + parseFloat(c.current_amount || 0), 0)
-              )}
+              {statistics.campaignCount}+
             </div>
-            <div className="stat-label">Đã Quyên Góp</div>
+            <div className="stat-label">Chiến Dịch</div>
           </div>
         </div>
       </section>
@@ -140,7 +148,7 @@ const Home = () => {
                   <div className="campaign-image-wrapper">
                     {campaign.thumbnail ? (
                       <img
-                        src={`http://localhost:5000${campaign.thumbnail}`}
+                        src={getImageUrl(campaign.thumbnail)}
                         alt={campaign.title}
                         className="campaign-thumbnail-modern"
                       />

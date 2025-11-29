@@ -11,7 +11,9 @@ const {
   deleteCampaign,
   getMyCampaigns,
   updateCampaignStatus,
-  endCampaign
+  endCampaign,
+  checkExpiredCampaigns,
+  getStatistics
 } = require('../controllers/campaignController');
 const { authenticate, isAdmin, optionalAuth } = require('../middleware/auth');
 
@@ -31,7 +33,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB (tăng từ 5MB)
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -43,23 +45,45 @@ const upload = multer({
   }
 });
 
+// Error handler middleware for Multer
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ 
+        message: 'File quá lớn. Kích thước tối đa là 10MB. Vui lòng chọn ảnh nhỏ hơn hoặc nén ảnh trước khi upload.' 
+      });
+    }
+    return res.status(400).json({ 
+      message: `Upload error: ${err.message}` 
+    });
+  }
+  if (err) {
+    return res.status(400).json({ 
+      message: err.message || 'Upload error' 
+    });
+  }
+  next();
+};
+
 // Public routes with optional auth (to check user role)
+router.get('/statistics', getStatistics); // Public endpoint
 router.get('/', optionalAuth, getAllCampaigns);
 
 // Protected routes
 router.get('/my-campaigns', authenticate, getMyCampaigns);
-router.post('/', authenticate, upload.single('thumbnail'), createCampaign);
+router.post('/', authenticate, upload.single('thumbnail'), handleMulterError, createCampaign);
 
 // Public route with optional auth (must be after /my-campaigns)
 router.get('/:id', optionalAuth, getCampaignById);
 
 // Protected routes
-router.put('/:id', authenticate, upload.single('thumbnail'), updateCampaign);
+router.put('/:id', authenticate, upload.single('thumbnail'), handleMulterError, updateCampaign);
 router.delete('/:id', authenticate, deleteCampaign);
 router.post('/:id/end', authenticate, endCampaign);
 
 // Admin routes
 router.patch('/:id/status', authenticate, isAdmin, updateCampaignStatus);
+router.post('/admin/check-expired', authenticate, isAdmin, checkExpiredCampaigns);
 
 module.exports = router;
 

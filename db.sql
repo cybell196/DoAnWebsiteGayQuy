@@ -13,10 +13,13 @@ CREATE TABLE users (
     id INT PRIMARY KEY AUTO_INCREMENT,
     fullname VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
+    google_id VARCHAR(255) NULL UNIQUE,
+    auth_provider ENUM('local', 'google') DEFAULT 'local',
+    password_hash VARCHAR(255) NULL,
     role ENUM('USER','ADMIN') DEFAULT 'USER',
     avatar VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_google_id (google_id)
 );
 
 -- 4. Bảng campaigns
@@ -53,7 +56,7 @@ CREATE TABLE campaign_images (
     FOREIGN KEY (campaign_id) REFERENCES campaigns(id)
 );
 
--- 7. Bảng donations (chuẩn hóa USD)
+-- 7. Bảng donations (chuẩn hóa USD) - Tích hợp PayOS
 CREATE TABLE donations (
     id INT PRIMARY KEY AUTO_INCREMENT,
     campaign_id INT NOT NULL,
@@ -61,11 +64,18 @@ CREATE TABLE donations (
     amount DECIMAL(15,2) NOT NULL,        -- USD
     currency CHAR(3) DEFAULT 'USD',       -- Tiền gốc
     exchange_rate DECIMAL(10,4) DEFAULT 1.0,  -- Tỷ giá lúc donate
+    amount_vnd DECIMAL(15,2) NULL,        -- Số tiền VND đã thanh toán (PayOS)
     message VARCHAR(255),
     is_public BOOLEAN DEFAULT TRUE,
+    payment_id VARCHAR(255) NULL,         -- PayOS payment code
+    payment_status ENUM('PENDING','SUCCESS','FAILED','CANCELLED') DEFAULT 'PENDING',  -- Trạng thái thanh toán PayOS
+    order_code BIGINT NULL,               -- Mã đơn hàng PayOS
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    INDEX idx_order_code (order_code),
+    INDEX idx_payment_status (payment_status)
 );
 
 -- 8. Bảng campaign_updates
@@ -97,10 +107,13 @@ CREATE TABLE transactions (
     exchange_rate DECIMAL(10,4) DEFAULT 1.0,
     tx_hash VARCHAR(255),                  -- Blockchain hash
     bank_ref VARCHAR(255),                 -- Mã giao dịch ngân hàng
+    reference VARCHAR(255),                -- Solana Pay reference key (PublicKey)
     status ENUM('PENDING','SUCCESS','FAILED') DEFAULT 'PENDING',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (donation_id) REFERENCES donations(id),
-    FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id)
+    FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id),
+    INDEX idx_reference (reference),
+    INDEX idx_tx_hash (tx_hash)
 );
 
 -- ====================================================
@@ -118,3 +131,24 @@ CREATE TABLE notifications (
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (campaign_id) REFERENCES campaigns(id)
 );
+
+-- 12. Bảng email_verifications (OTP)
+CREATE TABLE email_verifications (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    email VARCHAR(100) NOT NULL,
+    otp_code VARCHAR(6) NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email (email),
+    INDEX idx_expires (expires_at),
+    INDEX idx_verified (verified)
+);
+
+-- ====================================================
+-- Insert default payment methods
+-- ====================================================
+INSERT INTO payment_methods (name, type, status) VALUES
+('PayOS', 'BANK', 'ACTIVE'),
+('SOLANA', 'CRYPTO', 'ACTIVE')
+ON DUPLICATE KEY UPDATE status = 'ACTIVE';

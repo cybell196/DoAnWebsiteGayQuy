@@ -43,6 +43,30 @@ const ProfileDropdown = ({ user, onLogout }) => {
     return name[0].toUpperCase();
   };
 
+  // Normalize Google avatar URL để đảm bảo hiển thị đúng
+  const normalizeAvatarUrl = (url) => {
+    if (!url) return null;
+    
+    // Nếu là Google avatar URL (lh3.googleusercontent.com)
+    if (url.includes('googleusercontent.com')) {
+      // Loại bỏ các tham số cũ nếu có
+      const baseUrl = url.split('?')[0].split('=')[0];
+      // Thêm tham số để đảm bảo kích thước và format
+      // =s96-c: size 96px, crop to circle
+      return `${baseUrl}=s96-c`;
+    }
+    
+    return url;
+  };
+
+  // State để track avatar load errors
+  const [avatarError, setAvatarError] = useState(false);
+  
+  // Reset avatar error khi user thay đổi
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatar]);
+
   return (
     <div className="profile-dropdown" ref={dropdownRef}>
       <button
@@ -51,8 +75,14 @@ const ProfileDropdown = ({ user, onLogout }) => {
         aria-label="Profile menu"
       >
         <div className="profile-avatar">
-          {user.avatar ? (
-            <img src={user.avatar} alt={user.fullname} />
+          {user.avatar && !avatarError ? (
+            <img 
+              src={normalizeAvatarUrl(user.avatar)} 
+              alt={user.fullname}
+              onError={() => setAvatarError(true)}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+            />
           ) : (
             <span className="avatar-initials">{getInitials(user.fullname)}</span>
           )}
@@ -79,8 +109,14 @@ const ProfileDropdown = ({ user, onLogout }) => {
         <div className="profile-dropdown-menu">
           <div className="profile-menu-header">
             <div className="profile-menu-avatar">
-              {user.avatar ? (
-                <img src={user.avatar} alt={user.fullname} />
+              {user.avatar && !avatarError ? (
+                <img 
+                  src={normalizeAvatarUrl(user.avatar)} 
+                  alt={user.fullname}
+                  onError={() => setAvatarError(true)}
+                  crossOrigin="anonymous"
+                  referrerPolicy="no-referrer"
+                />
               ) : (
                 <span className="avatar-initials">{getInitials(user.fullname)}</span>
               )}

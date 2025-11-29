@@ -1,5 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 import './Auth.css';
@@ -25,6 +26,23 @@ const Login = () => {
     } catch (err) {
       setError(err.response?.data?.message || 'Đăng nhập thất bại');
     }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setError('');
+      const response = await api.post('/auth/google', {
+        credential: credentialResponse.credential
+      });
+      login(response.data.token, response.data.user);
+      navigate('/');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Đăng nhập Google thất bại');
+    }
+  };
+
+  const handleGoogleError = () => {
+    setError('Đăng nhập Google thất bại');
   };
 
   return (
@@ -57,6 +75,21 @@ const Login = () => {
             Đăng Nhập
           </button>
         </form>
+        <div className="auth-divider">
+          <span>Hoặc</span>
+        </div>
+        <div className="google-login-container">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+            useOneTap
+            text="signin_with"
+            shape="rectangular"
+            theme="outline"
+            size="large"
+            width="100%"
+          />
+        </div>
         <p className="auth-link">
           Chưa có tài khoản? <Link to="/register">Đăng ký ngay</Link>
         </p>

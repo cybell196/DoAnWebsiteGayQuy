@@ -16,8 +16,8 @@ const io = socketIo(server, {
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' })); // Tăng limit cho JSON body
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Tăng limit cho URL-encoded body
 app.use('/uploads', express.static('uploads'));
 app.use('/uploads/content-images', express.static('uploads/content-images'));
 
@@ -54,8 +54,33 @@ app.set('io', io);
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
+// Check SMTP configuration on startup
+const { verifyConnection } = require('./services/emailService');
+// Start campaign scheduler
+const { startCampaignScheduler } = require('./services/campaignScheduler');
+
+server.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Verify SMTP connection
+  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    console.log('Checking SMTP configuration...');
+    const smtpReady = await verifyConnection();
+    if (smtpReady) {
+      console.log('✅ SMTP is ready to send emails');
+    } else {
+      console.warn('⚠️  SMTP connection failed. OTP email feature may not work.');
+      console.warn('   Please check your SMTP configuration in .env file');
+    }
+  } else {
+    console.warn('⚠️  SMTP configuration is missing. OTP email feature will not work.');
+    console.warn('   Please add SMTP_USER and SMTP_PASS to your .env file');
+  }
+
+  // Start campaign scheduler (check every 60 minutes)
+  // Có thể config qua env: CAMPAIGN_CHECK_INTERVAL_MINUTES
+  const checkInterval = parseInt(process.env.CAMPAIGN_CHECK_INTERVAL_MINUTES) || 60;
+  startCampaignScheduler(checkInterval);
 });
 
 module.exports = { app, io };

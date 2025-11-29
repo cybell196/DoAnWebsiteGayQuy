@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
+import { getImageUrl } from '../utils/imageUtils';
 import './MyCampaigns.css';
 
 const MyCampaigns = () => {
@@ -96,7 +97,7 @@ const MyCampaigns = () => {
               <div key={campaign.id} className="my-campaign-card">
                 {campaign.thumbnail && (
                   <img
-                    src={`http://localhost:5000${campaign.thumbnail}`}
+                    src={getImageUrl(campaign.thumbnail)}
                     alt={campaign.title}
                     className="my-campaign-thumbnail"
                   />
