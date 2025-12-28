@@ -387,9 +387,9 @@ const updateCampaign = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized' });
     }
 
-    // Can only edit if not approved
-    if (campaign.status === 'APPROVED' && req.user.role !== 'ADMIN') {
-      return res.status(400).json({ message: 'Cannot edit approved campaign' });
+    // Can only edit if not approved or ended (admin can edit any)
+    if ((campaign.status === 'APPROVED' || campaign.status === 'ENDED') && req.user.role !== 'ADMIN') {
+      return res.status(400).json({ message: 'Cannot edit approved or ended campaign' });
     }
 
     // Update campaign

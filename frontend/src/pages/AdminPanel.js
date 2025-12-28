@@ -9,11 +9,29 @@ const AdminPanel = () => {
   const [donations, setDonations] = useState([]);
   const [activeTab, setActiveTab] = useState('campaigns');
   const [loading, setLoading] = useState(true);
+  
+  // Campaign filters
+  const [campaignFilter, setCampaignFilter] = useState('all'); // 'all', 'APPROVED', 'ENDED', 'REJECTED'
+  
+  // Donation filters and sorting
+  const [donationDateInput, setDonationDateInput] = useState(''); // Input value
+  const [donationDate, setDonationDate] = useState(''); // Applied filter
+  const [donationCampaignFilter, setDonationCampaignFilter] = useState('');
+  const [donationSortOrder, setDonationSortOrder] = useState('desc'); // 'asc' or 'desc'
+  const [allDonations, setAllDonations] = useState([]); // Store all donations for filtering
+
+  const [allCampaigns, setAllCampaigns] = useState([]); // Store all campaigns for filtering
 
   const fetchCampaigns = async () => {
     try {
       const response = await api.get('/campaigns');
-      setCampaigns(response.data.campaigns);
+      setAllCampaigns(response.data.campaigns);
+      // Apply current filter
+      if (campaignFilter === 'all') {
+        setCampaigns(response.data.campaigns);
+      } else {
+        setCampaigns(response.data.campaigns.filter(c => c.status === campaignFilter));
+      }
     } catch (error) {
       console.error('Error fetching campaigns:', error);
     } finally {
@@ -24,6 +42,7 @@ const AdminPanel = () => {
   const fetchDonations = async () => {
     try {
       const response = await api.get('/donations/all');
+      setAllDonations(response.data.donations);
       setDonations(response.data.donations);
     } catch (error) {
       console.error('Error fetching donations:', error);
@@ -33,12 +52,65 @@ const AdminPanel = () => {
   };
 
   useEffect(() => {
+    setLoading(true);
     if (activeTab === 'campaigns') {
       fetchCampaigns();
     } else {
       fetchDonations();
     }
   }, [activeTab]);
+
+  // Filter campaigns by status
+  useEffect(() => {
+    if (campaignFilter === 'all') {
+      setCampaigns(allCampaigns);
+    } else {
+      setCampaigns(allCampaigns.filter(c => c.status === campaignFilter));
+    }
+  }, [campaignFilter, allCampaigns]);
+
+  // Sync donationDateInput with donationDate when donationDate changes externally
+  useEffect(() => {
+    if (donationDate && donationDateInput !== donationDate) {
+      setDonationDateInput(donationDate);
+    }
+  }, [donationDate]);
+
+  // Filter and sort donations
+  useEffect(() => {
+    let filtered = [...allDonations];
+
+    // Filter by date
+    if (donationDate) {
+      const selectedDate = new Date(donationDate);
+      selectedDate.setHours(0, 0, 0, 0);
+      const nextDate = new Date(selectedDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+
+      filtered = filtered.filter(donation => {
+        const donationDateObj = new Date(donation.created_at);
+        return donationDateObj >= selectedDate && donationDateObj < nextDate;
+      });
+    }
+
+    // Filter by campaign name
+    if (donationCampaignFilter) {
+      filtered = filtered.filter(donation =>
+        donation.campaign_title.toLowerCase().includes(donationCampaignFilter.toLowerCase())
+      );
+    }
+
+    // Sort by amount
+    filtered.sort((a, b) => {
+      if (donationSortOrder === 'asc') {
+        return a.amount - b.amount;
+      } else {
+        return b.amount - a.amount;
+      }
+    });
+
+    setDonations(filtered);
+  }, [donationDate, donationCampaignFilter, donationSortOrder, allDonations]);
 
   const handleStatusUpdate = async (campaignId, status) => {
     try {
@@ -123,6 +195,24 @@ const AdminPanel = () => {
 
       {activeTab === 'campaigns' && (
         <div className="admin-campaigns">
+          <div className="admin-filter-section">
+            <div className="filter-row">
+              <div className="filter-group">
+                <label>Lọc theo trạng thái:</label>
+                <select
+                  value={campaignFilter}
+                  onChange={(e) => setCampaignFilter(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="all">Tất cả</option>
+                  <option value="PENDING">Chờ Duyệt</option>
+                  <option value="APPROVED">Đã Duyệt</option>
+                  <option value="ENDED">Đã Kết Thúc</option>
+                  <option value="REJECTED">Đã Từ Chối</option>
+                </select>
+              </div>
+            </div>
+          </div>
           {campaigns.length === 0 ? (
             <p>Chưa có chiến dịch nào</p>
           ) : (
@@ -207,6 +297,61 @@ const AdminPanel = () => {
 
       {activeTab === 'donations' && (
         <div className="admin-donations">
+          <div className="admin-filter-section">
+            <div className="filter-row">
+              <div className="filter-group">
+                <label>Tra cứu theo ngày:</label>
+                <input
+                  type="date"
+                  value={donationDateInput}
+                  onChange={(e) => setDonationDateInput(e.target.value)}
+                  className="filter-input"
+                />
+                <button
+                  onClick={() => {
+                    setDonationDate(donationDateInput);
+                  }}
+                  className="btn btn-primary btn-sm"
+                  style={{ marginLeft: '10px' }}
+                >
+                  Tra Cứu
+                </button>
+                {donationDate && (
+                  <button
+                    onClick={() => {
+                      setDonationDate('');
+                      setDonationDateInput('');
+                    }}
+                    className="btn btn-secondary btn-sm"
+                    style={{ marginLeft: '10px' }}
+                  >
+                    Xóa
+                  </button>
+                )}
+              </div>
+              <div className="filter-group">
+                <label>Lọc theo tên chiến dịch:</label>
+                <input
+                  type="text"
+                  value={donationCampaignFilter}
+                  onChange={(e) => setDonationCampaignFilter(e.target.value)}
+                  placeholder="Nhập tên chiến dịch..."
+                  className="filter-input"
+                />
+              </div>
+              <div className="filter-group">
+                <label>Sắp xếp theo số tiền:</label>
+                <select
+                  value={donationSortOrder}
+                  onChange={(e) => setDonationSortOrder(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="desc">Từ lớn đến bé</option>
+                  <option value="asc">Từ bé đến lớn</option>
+                </select>
+              </div>
+            </div>
+          </div>
           {donations.length === 0 ? (
             <p>Chưa có quyên góp nào</p>
           ) : (

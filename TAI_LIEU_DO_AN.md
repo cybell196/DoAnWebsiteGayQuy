@@ -145,54 +145,525 @@ frontend/
 
 ---
 
-## 3. CÔNG NGHỆ SỬ DỤNG
+## 3. CÀI ĐẶT HỆ THỐNG
 
-### 3.1. Frontend
+### 3.1. Môi Trường Cài Đặt
 
-| Công Nghệ | Phiên Bản | Mục Đích |
-|-----------|-----------|----------|
-| React | 18.2.0 | Framework UI |
-| React Router DOM | 6.20.0 | Điều hướng |
-| Axios | 1.6.2 | HTTP client |
-| Socket.IO Client | 4.6.1 | Real-time communication |
-| React Quill | 2.0.0 | Rich text editor |
-| React Icons | 4.12.0 | Icon library |
-| @react-oauth/google | 0.12.2 | Google OAuth |
+#### 3.1.1. Phần Cứng
 
-### 3.2. Backend
+Hệ thống được phát triển và triển khai trên các môi trường sau:
 
-| Công Nghệ | Phiên Bản | Mục Đích |
-|-----------|-----------|----------|
-| Node.js | - | Runtime environment |
-| Express | 4.18.2 | Web framework |
-| MySQL2 | 3.6.5 | Database driver |
-| JWT | 9.0.2 | Authentication |
-| Bcryptjs | 2.4.3 | Password hashing |
-| Socket.IO | 4.6.1 | Real-time server |
-| Multer | 1.4.5-lts.1 | File upload |
-| Cloudinary | 2.8.0 | Image storage |
-| Nodemailer | 7.0.10 | Email service |
-| @solana/web3.js | 1.98.4 | Solana blockchain |
-| @solana/pay | 0.2.6 | Solana Pay integration |
-| @payos/node | 2.0.3 | PayOS payment gateway |
-| QRCode | 1.5.4 | QR code generation |
-| Sharp | 0.34.5 | Image processing |
-| BigNumber.js | 9.3.1 | Số lớn cho Solana |
-| Google Auth Library | 9.0.0 | Google OAuth |
+- **CPU:** Tối thiểu 2 cores (khuyến nghị 4 cores trở lên)
+- **RAM:** Tối thiểu 4GB (khuyến nghị 8GB trở lên)
+- **Ổ cứng:** Tối thiểu 20GB dung lượng trống
+- **Kết nối mạng:** Băng thông tối thiểu 10Mbps
 
-### 3.3. Database
+#### 3.1.2. Phần Mềm
 
-- **MySQL** với charset `utf8mb4_unicode_ci`
-- 12 bảng chính: users, campaigns, campaign_contents, donations, transactions, notifications, v.v.
+**Backend (Node.js):**
+- **Node.js:** Phiên bản 18.x trở lên (sử dụng LTS version)
+- **NPM:** Phiên bản 9.x trở lên (đi kèm với Node.js)
+- **MySQL:** Phiên bản 8.0 trở lên
+- **Nodemon:** Phiên bản 3.0.2 (dev dependency)
 
-### 3.4. External Services
+**Frontend (React):**
+- **React:** Phiên bản 18.2.0
+- **React Router DOM:** Phiên bản 6.20.0
+- **React Scripts:** Phiên bản 5.0.1
 
-- **Cloudinary:** Lưu trữ và xử lý hình ảnh
-- **PayOS:** Cổng thanh toán VNPay/Momo
-- **Solana Devnet:** Mạng blockchain Solana (testnet)
+**Cơ Sở Dữ Liệu:**
+- **MySQL:** Phiên bản 8.0.35
+- **Character Set:** UTF8MB4
+- **Collation:** utf8mb4_unicode_ci
+
+**Thư Viện Quan Trọng:**
+
+**Backend Dependencies:**
+- `express@^4.18.2` - Framework web server
+- `mysql2@^3.6.5` - MySQL client cho Node.js
+- `jsonwebtoken@^9.0.2` - Xử lý JWT authentication
+- `bcryptjs@^2.4.3` - Mã hóa mật khẩu
+- `@solana/web3.js@^1.98.4` - Tương tác với Solana blockchain
+- `@solana/pay@^0.2.6` - Tạo Solana Pay URLs
+- `@payos/node@^2.0.3` - Tích hợp PayOS payment gateway
+- `socket.io@^4.6.1` - Real-time communication
+- `cloudinary@^2.8.0` - Quản lý hình ảnh trên cloud
+- `multer@^1.4.5-lts.1` - Xử lý file upload
+- `qrcode@^1.5.4` - Tạo QR code
+- `sharp@^0.34.5` - Xử lý và tối ưu hình ảnh
+- `google-auth-library@^9.0.0` - Xác thực Google OAuth
+- `nodemailer@^7.0.10` - Gửi email OTP
+- `axios@^1.13.2` - HTTP client
+- `bignumber.js@^9.3.1` - Xử lý số lớn cho Solana
+- `dotenv@^16.3.1` - Quản lý biến môi trường
+
+**Frontend Dependencies:**
+- `react@^18.2.0` - UI framework
+- `react-dom@^18.2.0` - React DOM renderer
+- `react-router-dom@^6.20.0` - Client-side routing
+- `axios@^1.6.2` - HTTP client
+- `socket.io-client@^4.6.1` - Socket.IO client
+- `react-quill@^2.0.0` - Rich text editor
+- `@react-oauth/google@^0.12.2` - Google OAuth integration
+- `react-icons@^4.12.0` - Icon library
+
+**Dịch Vụ Bên Thứ Ba:**
+- **Cloudinary:** CDN và image optimization service
+- **PayOS:** Payment gateway cho VNĐ
+- **Solana Devnet:** Blockchain network cho thanh toán SOL
 - **Binance API:** Lấy tỷ giá SOL/USD
-- **Exchange Rate API:** Lấy tỷ giá USD/VND
-- **Gmail SMTP:** Gửi email OTP
+- **Exchange Rate API:** Lấy tỷ giá USD/VNĐ
+
+### 3.2. Cấu Trúc Mã Nguồn
+
+Hệ thống được tổ chức theo mô hình **MVC (Model-View-Controller)** với kiến trúc tách biệt giữa Frontend và Backend:
+
+```
+DoAnWebsiteGayQuy/
+│
+├── backend/                          # Backend API Server
+│   ├── config/
+│   │   └── database.js               # Cấu hình kết nối MySQL
+│   │
+│   ├── controllers/                  # Business logic layer
+│   │   ├── authController.js         # Xử lý authentication (login, register, OTP, Google)
+│   │   ├── campaignController.js    # Quản lý chiến dịch (CRUD, status update)
+│   │   ├── donationController.js    # Quản lý quyên góp và thanh toán
+│   │   └── notificationController.js # Quản lý thông báo
+│   │
+│   ├── middleware/
+│   │   └── auth.js                   # JWT authentication middleware
+│   │
+│   ├── routes/                       # API routes definition
+│   │   ├── authRoutes.js            # Routes: /api/auth/*
+│   │   ├── campaignRoutes.js        # Routes: /api/campaigns/*
+│   │   ├── donationRoutes.js       # Routes: /api/donations/*
+│   │   ├── notificationRoutes.js   # Routes: /api/notifications/*
+│   │   └── uploadRoutes.js          # Routes: /api/upload/*
+│   │
+│   ├── services/                     # External services integration
+│   │   ├── solanaService.js         # Solana blockchain operations
+│   │   ├── payosService.js          # PayOS payment gateway
+│   │   ├── cloudinaryService.js     # Cloudinary image management
+│   │   ├── emailService.js          # Email sending (OTP)
+│   │   ├── exchangeRateService.js   # Currency exchange rates
+│   │   ├── notificationService.js   # Notification creation
+│   │   └── campaignScheduler.js     # Auto-end expired campaigns
+│   │
+│   ├── scripts/                      # Utility scripts
+│   │   ├── setup-db.js              # Database setup script
+│   │   ├── migrateImagesToCloudinary.js
+│   │   ├── checkTransaction.js
+│   │   └── verifyDonation.js
+│   │
+│   ├── uploads/                      # Temporary file storage
+│   │   └── content-images/          # Campaign content images
+│   │
+│   ├── server.js                     # Main server entry point
+│   ├── package.json                  # Backend dependencies
+│   └── .env                          # Environment variables
+│
+├── frontend/                         # React Frontend Application
+│   ├── public/
+│   │   └── index.html               # HTML template
+│   │
+│   ├── src/
+│   │   ├── components/               # Reusable React components
+│   │   │   ├── BlockEditor.js       # Rich text editor component
+│   │   │   ├── Navbar.js            # Navigation bar
+│   │   │   ├── NotificationBell.js # Notification dropdown
+│   │   │   ├── ProfileDropdown.js   # User profile menu
+│   │   │   ├── ProtectedRoute.js    # Route protection wrapper
+│   │   │   └── PublicRoute.js       # Public route wrapper
+│   │   │
+│   │   ├── pages/                    # Page components
+│   │   │   ├── Home.js              # Trang chủ (campaign list)
+│   │   │   ├── Browse.js            # Duyệt chiến dịch (filter, search)
+│   │   │   ├── CampaignDetail.js    # Chi tiết chiến dịch
+│   │   │   ├── CreateCampaign.js    # Tạo/sửa chiến dịch
+│   │   │   ├── MyCampaigns.js       # Chiến dịch của user
+│   │   │   ├── Profile.js            # Thông tin user
+│   │   │   ├── AdminPanel.js         # Admin dashboard
+│   │   │   ├── PaymentPage.js       # PayOS payment page
+│   │   │   ├── SolanaPaymentPage.js # Solana payment page
+│   │   │   ├── Login.js             # Đăng nhập
+│   │   │   └── Register.js          # Đăng ký
+│   │   │
+│   │   ├── context/
+│   │   │   └── AuthContext.js       # Global authentication context
+│   │   │
+│   │   ├── services/
+│   │   │   └── api.js               # Axios API client configuration
+│   │   │
+│   │   ├── utils/
+│   │   │   └── imageUtils.js        # Image URL helper functions
+│   │   │
+│   │   ├── constants/
+│   │   │   └── categories.js       # Campaign categories
+│   │   │
+│   │   ├── App.js                   # Main app component (routing)
+│   │   ├── App.css                  # Global styles
+│   │   ├── index.js                 # React entry point
+│   │   └── index.css                # Base styles
+│   │
+│   ├── package.json                  # Frontend dependencies
+│   └── .env                          # Frontend environment variables
+│
+├── db.sql                            # Database schema và initial data
+├── package.json                      # Root package.json (optional)
+├── README.md                         # Project documentation
+└── TAI_LIEU_DO_AN.md                # Tài liệu đồ án chi tiết
+```
+
+**Giải Thích Cấu Trúc:**
+
+- **Backend/Controllers:** Chứa business logic, xử lý request từ routes và tương tác với database
+- **Backend/Routes:** Định nghĩa các API endpoints và middleware áp dụng
+- **Backend/Services:** Tích hợp với các dịch vụ bên thứ ba (Solana, PayOS, Cloudinary, Email)
+- **Backend/Middleware:** Xử lý authentication, authorization, error handling
+- **Frontend/Components:** Các component tái sử dụng (Navbar, BlockEditor, NotificationBell)
+- **Frontend/Pages:** Các trang chính của ứng dụng
+- **Frontend/Context:** Quản lý global state (authentication state)
+- **Frontend/Services:** API client configuration và helper functions
+
+### 3.3. Cài Đặt Các Module Chức Năng
+
+#### 3.3.1. Module Xác Thực Và Phân Quyền
+
+Module này xử lý đăng ký, đăng nhập, xác thực OTP qua email, và đăng nhập bằng Google OAuth. Hệ thống sử dụng **JWT (JSON Web Token)** để quản lý session.
+
+**Cấu Hình JWT Middleware:**
+
+```javascript
+const authenticate = async (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'No token provided' });
+  
+  const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  const [users] = await pool.execute(
+    'SELECT id, email, fullname, role FROM users WHERE id = ?',
+    [decoded.id]
+  );
+  
+  if (users.length === 0) return res.status(401).json({ message: 'User not found' });
+  req.user = users[0];
+  next();
+};
+```
+
+**Xử Lý OTP Email:**
+
+Hệ thống tạo mã OTP 6 chữ số, lưu vào database với thời gian hết hạn 10 phút, và gửi qua email sử dụng Nodemailer với SMTP. Có rate limiting: tối đa 3 OTP mỗi email mỗi giờ.
+
+**Google OAuth Integration:**
+
+Sử dụng `google-auth-library` để verify Google ID token. Nếu user chưa tồn tại, hệ thống tự động tạo tài khoản mới với `auth_provider = 'google'` và `password_hash = NULL`.
+
+**Phân Quyền:**
+
+- **USER:** Có thể tạo chiến dịch, quyên góp, xem profile
+- **ADMIN:** Có quyền duyệt/từ chối chiến dịch, xem tất cả donations, quản lý hệ thống
+
+Middleware `isAdmin` kiểm tra `req.user.role === 'ADMIN'` trước khi cho phép truy cập các route admin.
+
+#### 3.3.2. Module Quản Lý Chiến Dịch
+
+Module này xử lý CRUD operations cho campaigns, bao gồm tạo, sửa, xóa, và quản lý trạng thái (PENDING, APPROVED, REJECTED, ENDED).
+
+**Tạo Chiến Dịch:**
+
+Khi user tạo chiến dịch, hệ thống:
+1. Upload thumbnail lên Cloudinary với auto-optimization
+2. Parse HTML content từ BlockEditor thành các blocks (H1, Quote, Body, Image)
+3. Upload các hình ảnh trong content lên Cloudinary
+4. Lưu campaign với status = 'PENDING'
+5. Tạo notification cho admin
+
+**Xử Lý Content Images:**
+
+```javascript
+const uploadContentImagesToCloudinary = async (htmlContent) => {
+  const imgRegex = /<img[^>]+src=["']([^"']+)["'][^>]*>/gi;
+  const matches = [...htmlContent.matchAll(imgRegex)];
+  
+  for (const match of matches) {
+    if (imageUrl.includes(baseUrl) && !imageUrl.includes('cloudinary.com')) {
+      const uploadResult = await uploadImage(filePath, {
+        folder: 'campaigns/content-images',
+        transformation: [{ width: 1920, height: 1080, crop: 'limit' }]
+      });
+      updatedContent = updatedContent.replace(imageUrl, cloudinaryUrl);
+    }
+  }
+  return { content: updatedContent, uploadedImages };
+};
+```
+
+**Tự Động Kết Thúc Chiến Dịch:**
+
+Scheduler chạy mỗi 60 phút (có thể config) để kiểm tra:
+- Chiến dịch đã đạt goal (`current_amount >= goal_amount`)
+- Chiến dịch đã hết hạn (`end_date < NOW()`)
+
+Nếu thỏa mãn, tự động set `status = 'ENDED'` và tạo notification cho creator.
+
+**Chặn Chỉnh Sửa:**
+
+User chỉ có thể sửa chiến dịch khi `status = 'PENDING'` hoặc `'REJECTED'`. Chiến dịch `APPROVED` hoặc `ENDED` không thể sửa (trừ admin).
+
+#### 3.3.3. Module Thanh Toán
+
+Hệ thống hỗ trợ 2 phương thức thanh toán: **PayOS** (VNĐ) và **Solana** (SOL).
+
+**A. PayOS Payment Flow:**
+
+1. **Tạo Payment Link:**
+   - Convert USD → VNĐ sử dụng exchange rate API
+   - Tạo donation record với `payment_status = 'PENDING'`
+   - Generate unique `order_code` (8 digits)
+   - Gọi PayOS API để tạo payment link
+
+```javascript
+const paymentLinkData = {
+  orderCode: orderCode,
+  amount: vndAmount,
+  description: campaign.title.substring(0, 25),
+  returnUrl: `${baseUrl}/campaigns/${campaign_id}?payment=success`,
+  cancelUrl: `${baseUrl}/campaigns/${campaign_id}?payment=cancelled`
+};
+const paymentResult = await payOS.paymentRequests.create(paymentLinkData);
+```
+
+2. **Webhook Verification:**
+   - PayOS gửi webhook khi thanh toán thành công
+   - Backend verify signature và checksum
+   - Update `payment_status = 'SUCCESS'`
+   - Update `campaign.current_amount`
+   - Emit Socket.IO event để cập nhật real-time
+
+**B. Solana Payment Flow:**
+
+1. **Tạo Solana Pay URL:**
+   - Convert USD → SOL sử dụng Binance API (SOLUSDT)
+   - Generate unique `reference key` (32 bytes) từ donation ID
+   - Tạo Solana Pay URL với format: `solana:<WALLET>?amount=<SOL>&reference=<REF>`
+
+```javascript
+const referenceBuffer = crypto.createHash('sha256')
+  .update(`donation_${donationId}_${Date.now()}`)
+  .digest()
+  .slice(0, 32);
+const reference = new PublicKey(referenceBuffer);
+const url = encodeURL({ recipient, amount: amountBN, reference });
+```
+
+2. **Generate QR Code:**
+   - Sử dụng `qrcode` library để tạo QR code từ Solana Pay URL
+   - Composite Solana logo vào center của QR code bằng `sharp`
+   - Trả về base64 data URL
+
+3. **Auto-Verify Transaction:**
+   - Frontend polling mỗi 5 giây gọi API `/donations/:id/verify-solana`
+   - Backend quét Solana blockchain tìm transaction có `reference key` khớp
+   - Sử dụng `findTransactionByReference()` với các điều kiện:
+     - Transaction phải có reference key trong accountKeys
+     - `blockTime >= donation.created_at` (tránh match transaction cũ)
+     - Signature chưa được sử dụng (tránh duplicate)
+
+```javascript
+const findTransactionByReference = async (referenceKey, minBlockTime, excludeSignatures) => {
+  const referencePubkey = new PublicKey(referenceKey);
+  const signatures = await connection.getSignaturesForAddress(referencePubkey, { limit: 10 });
+  
+  for (const sigInfo of signatures) {
+    if (sigInfo.blockTime < minBlockTime) continue;
+    if (excludeSignatures.includes(sigInfo.signature)) continue;
+    
+    const tx = await connection.getTransaction(sigInfo.signature, { commitment: 'confirmed' });
+    if (tx && tx.meta && !tx.meta.err) {
+      return { valid: true, signature: sigInfo.signature, ... };
+    }
+  }
+  return { valid: false };
+};
+```
+
+4. **Verify Transaction Details:**
+   - Kiểm tra `preBalances` và `postBalances` để tính số SOL nhận được
+   - Verify amount với tolerance 0.001 SOL (để bù phí giao dịch)
+   - Lưu transaction signature vào database để tránh verify lại
+
+**Xử Lý Lỗi:**
+
+- Nếu không tìm thấy transaction sau 5 phút, frontend hiển thị thông báo và cho phép verify thủ công
+- Nếu transaction failed (`meta.err`), hiển thị lỗi và không cập nhật donation
+
+#### 3.3.4. Module Cập Nhật Thời Gian Thực
+
+Hệ thống sử dụng **Socket.IO** để cập nhật tiến độ gây quỹ ngay lập tức khi có donation mới.
+
+**Backend Socket.IO Setup:**
+
+```javascript
+const io = socketIo(server, {
+  cors: { origin: process.env.FRONTEND_URL || "http://localhost:3000" }
+});
+
+io.on('connection', (socket) => {
+  socket.on('join-campaign', (campaignId) => {
+    socket.join(`campaign-${campaignId}`);
+  });
+  
+  socket.on('leave-campaign', (campaignId) => {
+    socket.leave(`campaign-${campaignId}`);
+  });
+});
+```
+
+**Emit Event Khi Có Donation:**
+
+Khi donation được tạo hoặc verified thành công, backend emit event đến tất cả clients đang xem campaign đó:
+
+```javascript
+if (io) {
+  io.to(`campaign-${campaign_id}`).emit('new-donation', {
+    donation: { id, amount, donor_name, ... },
+    campaign: { current_amount, goal_amount, ... }
+  });
+}
+```
+
+**Frontend Socket.IO Client:**
+
+```javascript
+useEffect(() => {
+  const socket = io(process.env.REACT_APP_API_URL || 'http://localhost:5000');
+  socket.emit('join-campaign', campaignId);
+  
+  socket.on('new-donation', (data) => {
+    setCampaign(data.campaign);
+    setDonations(prev => [data.donation, ...prev]);
+  });
+  
+  return () => {
+    socket.emit('leave-campaign', campaignId);
+    socket.disconnect();
+  };
+}, [campaignId]);
+```
+
+**Kết Quả:**
+
+- Tất cả users đang xem campaign detail page sẽ thấy donation mới và tiến độ cập nhật ngay lập tức
+- Không cần refresh trang
+- Progress bar và số tiền quyên góp được cập nhật real-time
+
+#### 3.3.5. Module Quản Trị Hệ Thống
+
+Module này cho phép admin duyệt/từ chối chiến dịch, quản lý donations, và xem thống kê.
+
+**Duyệt/Từ Chối Chiến Dịch:**
+
+```javascript
+const updateCampaignStatus = async (req, res) => {
+  const { campaignId } = req.params;
+  const { status } = req.body; // 'APPROVED' hoặc 'REJECTED'
+  
+  await pool.execute(
+    'UPDATE campaigns SET status = ? WHERE id = ?',
+    [status, campaignId]
+  );
+  
+  // Tạo notification cho campaign creator
+  await notifyCampaignStatus(campaignId, status, req.user.id);
+  
+  res.json({ message: `Campaign ${status.toLowerCase()} successfully` });
+};
+```
+
+**Lọc Và Tra Cứu Donations:**
+
+Admin có thể:
+- **Lọc theo ngày:** Nhập ngày và click "Tra Cứu" → filter donations trong ngày đó
+- **Lọc theo tên chiến dịch:** Tìm kiếm không phân biệt hoa thường
+- **Sắp xếp theo số tiền:** Từ lớn đến bé hoặc ngược lại
+
+```javascript
+// Filter by date
+if (donationDate) {
+  const selectedDate = new Date(donationDate);
+  selectedDate.setHours(0, 0, 0, 0);
+  const nextDate = new Date(selectedDate);
+  nextDate.setDate(nextDate.getDate() + 1);
+  
+  filtered = filtered.filter(donation => {
+    const donationDateObj = new Date(donation.created_at);
+    return donationDateObj >= selectedDate && donationDateObj < nextDate;
+  });
+}
+
+// Sort by amount
+filtered.sort((a, b) => {
+  return donationSortOrder === 'asc' 
+    ? a.amount - b.amount 
+    : b.amount - a.amount;
+});
+```
+
+**Lọc Chiến Dịch Theo Trạng Thái:**
+
+Admin có thể filter campaigns theo:
+- Tất cả
+- Chờ Duyệt (PENDING)
+- Đã Duyệt (APPROVED)
+- Đã Kết Thúc (ENDED)
+- Đã Từ Chối (REJECTED)
+
+**Kết Thúc Chiến Dịch Thủ Công:**
+
+Admin có thể kết thúc chiến dịch bất kỳ lúc nào bằng cách click nút "Kết Thúc" trong Admin Panel. Hệ thống sẽ set `status = 'ENDED'` và tạo notification.
+
+### 3.4. Kết Quả Triển Khai
+
+Sau khi hoàn thành cài đặt, hệ thống đạt được các kết quả sau:
+
+**Backend API:**
+- ✅ 30+ API endpoints hoạt động ổn định
+- ✅ JWT authentication và authorization
+- ✅ Real-time updates qua Socket.IO
+- ✅ Tích hợp PayOS và Solana payment
+- ✅ Auto-verify Solana transactions
+- ✅ Image optimization với Cloudinary
+- ✅ Email OTP verification
+
+**Frontend:**
+- ✅ Responsive design, tương thích mobile và desktop
+- ✅ Real-time campaign updates
+- ✅ Rich text editor với BlockEditor
+- ✅ Payment flows hoàn chỉnh (PayOS và Solana)
+- ✅ Admin dashboard với filtering và search
+- ✅ Google OAuth login
+
+**Database:**
+- ✅ 10+ bảng được chuẩn hóa và tối ưu
+- ✅ Indexes cho các truy vấn thường xuyên
+- ✅ Foreign keys đảm bảo data integrity
+- ✅ UTF8MB4 support cho tiếng Việt
+
+**Bảo Mật:**
+- ✅ Mật khẩu được hash bằng bcrypt
+- ✅ JWT tokens với expiration
+- ✅ CORS configuration
+- ✅ Input validation và sanitization
+- ✅ File upload size limits
+
+**Hiệu Năng:**
+- ✅ Image optimization tự động
+- ✅ Database query optimization
+- ✅ Socket.IO room-based broadcasting
+- ✅ Lazy loading cho images
+
+Hệ thống đã sẵn sàng để triển khai production với các cấu hình môi trường phù hợp.
 
 ---
 
